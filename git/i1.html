@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Diary</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen">
+  <div class="max-w-xl w-full p-8 bg-white dark:bg-gray-800 rounded-lg shadow">
+    <h1 class="text-2xl font-bold mb-4 text-center text-gray-800 dark:text-gray-100">My Speech Diary</h1>
+
+    <!-- Date input -->
+    <label class="block mb-2 text-gray-700 dark:text-gray-200">Date:</label>
+    <input type="date" id="diaryDate" class="w-full p-2 border rounded mb-4"/>
+
+    <label class="block mb-2 text-gray-700 dark:text-gray-200">Choose Language:</label>
+    <select id="language" class="w-full p-2 border rounded mb-4">
+      <option value="en-US">English</option>
+      <option value="ta-IN">Tamil</option>
+      <option value="fr-FR">French</option>
+    </select>
+
+    <textarea id="diaryText" rows="10" class="w-full p-4 border rounded mb-4" placeholder="Your diary entry will appear here..."></textarea>
+
+    <div class="flex gap-4">
+      <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 rounded">Start Recording</button>
+      <button id="stopBtn" class="bg-red-500 text-white px-4 py-2 rounded">Stop</button>
+      <button id="saveBtn" class="bg-green-500 text-white px-4 py-2 rounded">Save</button>
+    </div>
+
+    <p id="saveMessage" class="mt-4 text-green-600 hidden">Diary saved!</p>
+
+    <!-- Display saved entries -->
+    <div id="entriesContainer" class="mt-8">
+      <h2 class="text-xl font-bold mb-2 text-gray-800 dark:text-gray-100">Saved Entries</h2>
+      <div id="entriesList" class="space-y-4"></div>
+    </div>
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const diaryText = document.getElementById('diaryText');
+    const languageSelect = document.getElementById('language');
+    const saveMessage = document.getElementById('saveMessage');
+    const diaryDate = document.getElementById('diaryDate');
+    const entriesList = document.getElementById('entriesList');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+
+    startBtn.onclick = () => {
+      recognition.lang = languageSelect.value;
+      recognition.start();
+    };
+
+    stopBtn.onclick = () => {
+      recognition.stop();
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map(result => result[0])
+        .map(result => result.transcript)
+        .join('');
+
+      diaryText.value = transcript;
+    };
+
+    // Load saved entries and date if available
+    window.onload = () => {
+      const savedDate = localStorage.getItem('diaryDate');
+      if (savedDate) {
+        diaryDate.value = savedDate;
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        diaryDate.value = today;
+      }
+      loadEntries();
+    };
+
+    function loadEntries() {
+      const entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+      entriesList.innerHTML = '';
+
+      entries.forEach((entry, index) => {
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'p-4 border rounded bg-gray-50 dark:bg-gray-700';
+
+        entryDiv.innerHTML = `
+          <p class="text-sm text-gray-600 dark:text-gray-300 mb-2">${entry.date} ${entry.time}</p>
+          <p class="text-gray-800 dark:text-gray-100 whitespace-pre-wrap mb-2">${entry.content}</p>
+          <button class="bg-red-500 text-white px-2 py-1 rounded text-sm" data-index="${index}">Remove</button>
+        `;
+
+        // Add remove handler
+        entryDiv.querySelector('button').onclick = (e) => {
+          const i = e.target.getAttribute('data-index');
+          removeEntry(i);
+        };
+
+        entriesList.appendChild(entryDiv);
+      });
+    }
+
+    function removeEntry(index) {
+      let entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+      entries.splice(index, 1);
+      localStorage.setItem('diaryEntries', JSON.stringify(entries));
+      loadEntries();
+    }
+
+    saveBtn.onclick = () => {
+      const content = diaryText.value.trim();
+      const date = diaryDate.value;
+
+      if (!content) {
+        alert('Please enter some text before saving.');
+        return;
+      }
+
+      const now = new Date();
+      const time = now.toLocaleTimeString();
+
+      const newEntry = { date, time, content };
+
+      const entries = JSON.parse(localStorage.getItem('diaryEntries')) || [];
+      entries.push(newEntry);
+
+      localStorage.setItem('diaryEntries', JSON.stringify(entries));
+      localStorage.setItem('diaryDate', date);
+
+      saveMessage.textContent = 'Diary saved!';
+      saveMessage.classList.remove('hidden');
+      setTimeout(() => saveMessage.classList.add('hidden'), 2000);
+
+      alert('Diary saved successfully!');
+
+      diaryText.value = '';
+
+      loadEntries();
+    };
+  </script>
+</body>
+</html>
